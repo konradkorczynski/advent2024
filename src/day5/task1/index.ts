@@ -12,7 +12,7 @@ const run = () => {
   updates.forEach((update) => {
     const pages = update.split(",");
 
-    var potentialBrokenRulesInUpdates = pages
+    const potentialBrokenRules = pages
       .flatMap((v, i) =>
         pages.slice(i).map((w) => {
           if (v !== w) return w + "|" + v;
@@ -20,13 +20,11 @@ const run = () => {
       )
       .filter((v) => v !== undefined);
 
-    const isIncorrect = potentialBrokenRulesInUpdates.some(
-      (potentialBrokenRule) => {
-        return rules.some((rule) => potentialBrokenRule === rule);
-      }
+    const isIncorrect = potentialBrokenRules.some((potentialBrokenRule) =>
+      rules.some((rule) => potentialBrokenRule === rule)
     );
 
-    console.log({ potentialBrokenRulesInUpdates, isIncorrect });
+    console.log({ potentialBrokenRules, isIncorrect });
 
     if (!isIncorrect) {
       pagesToAdd.push(parseInt(pages[(pages.length - 1) / 2]));
