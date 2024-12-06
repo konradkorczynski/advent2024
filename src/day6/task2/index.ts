@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import { withMetrics } from "../../utils/withMetrics";
 
 const mapInput = "input.txt";
 
@@ -124,10 +125,10 @@ const moveGuard = (guard: Guard, map: Map): Guard => {
   guard.direction = directionChange[guard.direction];
   guard.cell.value = directions[guard.direction] as CellValue;
 
-  if (guard.stuck) console.log("Guard is stuck!!!!");
+  // if (guard.stuck) console.log("Guard is stuck!!!!");
   if (!guard.present) {
     guard.cell.value = "X";
-    console.log("Guard has left the building!!!!");
+    // console.log("Guard has left the building!!!!");
   }
 
   // drawMap(map);
@@ -156,8 +157,8 @@ const getStartMap = () => {
 const run = () => {
   const unobstructedMap = getStartMap();
 
-  console.log("start map");
-  drawMap(unobstructedMap);
+  // console.log("start map");
+  // drawMap(unobstructedMap);
   const guard = findGuard(unobstructedMap);
   const guardStart = { y: guard.cell.y, x: guard.cell.x };
 
@@ -169,19 +170,19 @@ const run = () => {
     .filter((cell) => cell.value === "X")
     .filter((cell) => cell.y !== guardStart.y || cell.x !== guardStart.x);
 
-  const validObstructions: Cell[] = [];
+  let validObstructions = 0;
 
   walkedCells.forEach((walkedCell) => {
     const map = getStartMap();
     // obstruct the cell
     map[walkedCell.y][walkedCell.x].value = "O";
-    console.log("start obstructed map", walkedCell);
+    // console.log("start obstructed map", walkedCell);
     const guard = findGuard(map);
     while (guard.present && !guard.stuck) moveGuard(guard, map);
-    drawMap(map);
-    if (guard.stuck) validObstructions.push(walkedCell);
+    // drawMap(map);
+    if (guard.stuck) validObstructions++;
   });
-  console.log({ count: validObstructions.length });
+  console.log({ count: validObstructions });
 };
 
-run();
+withMetrics(run);
