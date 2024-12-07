@@ -54,6 +54,7 @@ const run = () => {
   let result = 0;
 
   data.forEach((row) => {
+    // optimization: move reduce logic into generateOperatorCombinations so that we have an early bail out
     generateOperatorCombinations(row.operatorCount).forEach((operators) => {
       const rowResult = row.numbers.reduce((acc, num, i) => {
         // first number
