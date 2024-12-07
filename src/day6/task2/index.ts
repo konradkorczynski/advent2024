@@ -142,47 +142,116 @@ const drawMap = (map: Map) => {
   console.log("--------------------");
 };
 
+const originalMap = fs
+  .readFileSync(mapInput, "utf8")
+  .split("\n")
+  .map((row, y) =>
+    row.split("").map((cellValue, x) => new Cell(y, x, cellValue as CellValue))
+  );
+
 const getStartMap = () => {
-  // deep copy would be better but meh
-  return fs
-    .readFileSync(mapInput, "utf8")
-    .split("\n")
-    .map((row, y) =>
-      row
-        .split("")
-        .map((cellValue, x) => new Cell(y, x, cellValue as CellValue))
-    );
+  return originalMap.map((row) =>
+    row.map((cell) => new Cell(cell.y, cell.x, cell.value))
+  );
 };
 
-const run = () => {
+// const getStartMapAsync = async () => {
+//   const file = await fs.promises.readFile(mapInput, "utf8");
+//   return file
+//     .split("\n")
+//     .map((row, y) =>
+//       row
+//         .split("")
+//         .map((cellValue, x) => new Cell(y, x, cellValue as CellValue))
+//     );
+// };
+
+const getStartMapAsync = () => {
+  return new Promise<Map>((resolve) => {
+    resolve(getStartMap());
+  });
+};
+
+const run = async () => {
   const unobstructedMap = getStartMap();
 
   // console.log("start map");
   // drawMap(unobstructedMap);
-  const guard = findGuard(unobstructedMap);
-  const guardStart = { y: guard.cell.y, x: guard.cell.x };
+  const guardUnobstructed = findGuard(unobstructedMap);
+  const guardStart = {
+    y: guardUnobstructed.cell.y,
+    x: guardUnobstructed.cell.x,
+  };
 
   // grab all the cells the guard will walk on
-  while (guard.present && !guard.stuck) moveGuard(guard, unobstructedMap);
+  while (guardUnobstructed.present && !guardUnobstructed.stuck)
+    moveGuard(guardUnobstructed, unobstructedMap);
 
   const walkedCells = unobstructedMap
     .flat()
     .filter((cell) => cell.value === "X")
     .filter((cell) => cell.y !== guardStart.y || cell.x !== guardStart.x);
 
-  let validObstructions = 0;
+  // parallel executions seems to do crap all - am I doing it wrong? promises seem to be executing sequentially
+  // there is probably something up with the fact of deep copy from the original map
+  // when I read async from the file, it seems to be working in parallel but is slow
 
-  walkedCells.forEach((walkedCell) => {
-    const map = getStartMap();
-    // obstruct the cell
-    map[walkedCell.y][walkedCell.x].value = "O";
-    // console.log("start obstructed map", walkedCell);
-    const guard = findGuard(map);
-    while (guard.present && !guard.stuck) moveGuard(guard, map);
-    // drawMap(map);
-    if (guard.stuck) validObstructions++;
-  });
-  console.log({ count: validObstructions });
+  const fn = (cells: Cell[], i: number) => {
+    return new Promise<number>(async (resolve) => {
+      const start = Date.now();
+      let validObstructions = 0;
+
+      for (const cell of cells) {
+        const obstructedMap = await getStartMapAsync();
+        // const obstructedMap = getStartMap();
+
+        // obstruct the cell
+        obstructedMap[cell.y][cell.x].value = "O";
+        // console.log("start obstructed map", walkedCell);
+        const guard = findGuard(obstructedMap);
+        while (guard.present && !guard.stuck) moveGuard(guard, obstructedMap);
+        // drawMap(map);
+        if (guard.stuck) validObstructions++;
+      }
+      console.log({
+        i,
+        count: validObstructions,
+        time: `${Date.now() - start}ms`,
+      });
+      resolve(validObstructions);
+    });
+  };
+
+  const parallelIndex = 2500;
+  const result: number[] = await Promise.all([
+    ...Array.from({ length: walkedCells.length / parallelIndex }, (_, i) =>
+      fn(walkedCells.slice(i * parallelIndex, (i + 1) * parallelIndex), i)
+    ),
+    fn(
+      walkedCells.slice(
+        walkedCells.length - (walkedCells.length % parallelIndex),
+        walkedCells.length
+      ),
+      -1
+    ),
+  ]);
+
+  return result.reduce((acc: number, curr: number) => acc + curr, 0);
+
+  // let validObstructions = 0;
+
+  // walkedCells.forEach((walkedCell) => {
+  //   const map = getStartMap();
+  //   // obstruct the cell
+  //   map[walkedCell.y][walkedCell.x].value = "O";
+  //   // console.log("start obstructed map", walkedCell);
+  //   const guard = findGuard(map);
+  //   while (guard.present && !guard.stuck) moveGuard(guard, map);
+  //   // drawMap(map);
+  //   if (guard.stuck) validObstructions++;
+  // });
+
+  // return validObstructions;
 };
 
 withMetrics(run);
