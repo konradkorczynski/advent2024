@@ -35,6 +35,15 @@ const cellBelongsToPlot = (cell: Cell, plots: Plot[]) => {
   );
 };
 
+/**
+ * Ok, this is a bit weird, but works.
+ * Firstly, I calculate the sides for each cell in the plot adding them to an array on the cell,
+ * indicating which N,S,W,E side it is - that's an extension from task1.
+ * Then for the square bounds of the plot, I first iterate over rows to find the N and S sides.
+ * Later I iterate over columns to find the E and W sides.
+ * For each type of a side when going through a row or column, for each cell in the array,
+ * I check for continuity of the side, if it's not there, I reset the check.
+ */
 const getPerimeter = (plot: Plot) => {
   // console.log(`---- calculating sides for plot ${plot.cells[0].value}`);
   plot.cells.forEach((cell) => {
