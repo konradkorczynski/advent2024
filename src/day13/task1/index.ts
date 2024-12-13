@@ -57,7 +57,7 @@ const solveEquation = (equation: Equation) => {
   //   equation2: `${AY}x + ${BY}y = ${Y}`,
   //   result,
   // });
-  
+
   // surely there is a better way to check if a number is an integer
   return result.some(
     (r) => !Number.isInteger(parseFloat(r.toFixed(4))) || r < 0
@@ -70,7 +70,7 @@ const run = () => {
   const data = getData();
   const result = data.map((equation) => {
     const solution = solveEquation(equation);
-    console.log({ solution });
+    // console.log({ solution });
     return solution ? solution[0] * 3 + solution[1] : 0;
   });
   // console.log({ data, result, len: result.length });
