@@ -14,7 +14,7 @@ type Equation = {
   Y: number;
 };
 
-const getData = () => {
+const getData = (prizeIncrease: number) => {
   const data: Equation[] = [];
 
   let equation: Partial<Equation> = {};
@@ -36,8 +36,8 @@ const getData = () => {
         equation.BY = parseInt(rowDataSplit[1].substring(2));
       }
       if (rowSplit[0] === "Prize") {
-        equation.X = parseInt(rowDataSplit[0].substring(2));
-        equation.Y = parseInt(rowDataSplit[1].substring(2));
+        equation.X = parseInt(rowDataSplit[0].substring(2)) + prizeIncrease;
+        equation.Y = parseInt(rowDataSplit[1].substring(2)) + prizeIncrease;
         // console.log({ equation });
         data.push(equation as Equation);
         equation = {};
@@ -60,14 +60,14 @@ const solveEquation = (equation: Equation) => {
 
   // surely there is a better way to check if a number is an integer
   return result.some(
-    (r) => !Number.isInteger(parseFloat(r.toFixed(4))) || r < 0
+    (r) => !Number.isInteger(parseFloat(r.toFixed(2))) || r < 0
   )
     ? undefined
-    : result;
+    : result.map((r) => parseInt(r.toFixed(2)));
 };
 
-const run = () => {
-  const data = getData();
+const run = (prizeIncrease = 0) => {
+  const data = getData(prizeIncrease);
   const result = data.map((equation) => {
     const solution = solveEquation(equation);
     // console.log({ solution });
@@ -78,3 +78,4 @@ const run = () => {
 };
 
 withMetrics(run);
+withMetrics(() => run(10000000000000));
