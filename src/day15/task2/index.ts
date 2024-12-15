@@ -57,7 +57,7 @@ class Box {
     this.isMovable = this.checkIfMovable();
   }
 
-  getNeighboringBoxes(): Box[] {
+  private getNeighboringBoxes(): Box[] {
     const boxes = [];
     // one box above
     if (
@@ -98,7 +98,7 @@ class Box {
     return boxes;
   }
 
-  checkIfMovable(): boolean {
+  private checkIfMovable(): boolean {
     // blocked by wall
     if (
       this.map[this.moveDirectionValue][this.leftCell.x].value === "#" ||
@@ -116,6 +116,14 @@ class Box {
     // box along the way
     return this.boxesAlongTheWay.every((box) => box.isMovable);
   }
+
+  // clean up if this makes any sense - might later, dunno
+  clear() {
+    this.boxesAlongTheWay.forEach((box) => {
+      box.clear();
+    });
+    this.boxesAlongTheWay = [];
+  }
 }
 
 const moveRobot = (
@@ -126,22 +134,26 @@ const moveRobot = (
   const { y, x } = robotPosition;
   const line = getLine(map, y, x, move);
   // console.log("making move", { line, move });
-  const wallIndex = line.findIndex((cell) => cell.value === "#");
-  const firstEmptyCellIndex = line.findIndex((cell) => cell.value === ".");
-  // console.log({ wallIndex, firstEmptyCellIndex });
-  if (firstEmptyCellIndex === -1 || wallIndex < firstEmptyCellIndex) return;
+  if (move === ">" || move === "<") {
+    const wallIndex = line.findIndex((cell) => cell.value === "#");
+    const firstEmptyCellIndex = line.findIndex((cell) => cell.value === ".");
+    // console.log({ wallIndex, firstEmptyCellIndex });
+    if (firstEmptyCellIndex === -1 || wallIndex < firstEmptyCellIndex) return;
 
-  const subLine = line.slice(0, firstEmptyCellIndex + 1);
-  const arr = subLine.map((cell) => cell.value);
-  arr.unshift(...arr.splice(-1));
-  subLine.forEach((cell, index) => {
-    const newValue = arr[index];
-    if (newValue === "@") {
-      robotPosition.y = cell.y;
-      robotPosition.x = cell.x;
-    }
-    cell.value = arr[index];
-  });
+    const subLine = line.slice(0, firstEmptyCellIndex + 1);
+    const arr = subLine.map((cell) => cell.value);
+    arr.unshift(...arr.splice(-1));
+    subLine.forEach((cell, index) => {
+      const newValue = arr[index];
+      if (newValue === "@") {
+        robotPosition.y = cell.y;
+        robotPosition.x = cell.x;
+      }
+      cell.value = arr[index];
+    });
+  } else {
+    // upd and down move
+  }
 
   // console.log({ arr, line });
 };
