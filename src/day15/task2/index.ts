@@ -229,13 +229,17 @@ const drawMap = (map: Map, toFile?: boolean, move?: Move) => {
       );
       fs.appendFileSync("output.txt", "\n");
     } else {
-      console.log(row.map((cell) => cell.value).join(""));
+      console.log(
+        row
+          .map((cell) => (cell.value === "@" && move ? move : cell.value))
+          .join("")
+      );
     }
   });
 };
 
 const run = () => {
-  console.log("------------ start ------------");
+  // console.log("------------ start ------------");
   const robotPosition = { y: 0, x: 0 };
 
   const map: Map = fs
@@ -266,13 +270,16 @@ const run = () => {
 
   const moves = fs.readFileSync(movesInput, "utf8").split("\n").join("");
 
-  const toFile = true;
+  const toFile = false;
 
-  // drawMap(map, toFile);
-  moves.split("").forEach((move) => {
+  drawMap(map, toFile);
+  moves.split("").forEach((move, i) => {
     moveRobot(map, robotPosition, move as Move);
     movedBoxes = [];
-    // drawMap(map, toFile, move as Move);
+    sleep(10);
+    console.clear();
+    drawMap(map, toFile, move as Move);
+    console.log("move: ", i);
   });
   // console.log({ robotPosition, moves });
 
@@ -283,3 +290,7 @@ const run = () => {
 };
 
 withMetrics(run);
+
+function sleep(n: number) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, n);
+}
