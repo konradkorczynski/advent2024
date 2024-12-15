@@ -2,10 +2,10 @@ import * as fs from "fs";
 import { withMetrics } from "../../utils";
 import util from "util";
 
-// const mapInput = "input.txt";
-// const movesInput = "moves.txt";
-const mapInput = "example_input.txt";
-const movesInput = "example_moves.txt";
+const mapInput = "input.txt";
+const movesInput = "moves.txt";
+// const mapInput = "example_input.txt";
+// const movesInput = "example_moves.txt";
 
 type CellValue = "#" | "." | "[" | "]" | "@";
 
@@ -206,9 +206,22 @@ const moveRobot = (
   // console.log({ arr, line });
 };
 
-const drawMap = (map: Map) => {
+const drawMap = (map: Map, toFile?: boolean, move?: Move) => {
+  if (toFile && move) {
+    fs.appendFileSync("output.txt", "\n");
+  }
   map.forEach((row) => {
-    console.log(row.map((cell) => cell.value).join(""));
+    if (toFile) {
+      fs.appendFileSync(
+        "output.txt",
+        row
+          .map((cell) => (cell.value === "@" && move ? move : cell.value))
+          .join("")
+      );
+      fs.appendFileSync("output.txt", "\n");
+    } else {
+      console.log(row.map((cell) => cell.value).join(""));
+    }
   });
 };
 
@@ -244,13 +257,13 @@ const run = () => {
 
   const moves = fs.readFileSync(movesInput, "utf8").split("\n").join("");
 
-  drawMap(map);
+  const toFile = true;
+  drawMap(map, toFile);
   moves.split("").forEach((move) => {
-    console.log({ move });
     moveRobot(map, robotPosition, move as Move);
-    drawMap(map);
+    drawMap(map, toFile, move as Move);
   });
-  console.log({ robotPosition, moves });
+  // console.log({ robotPosition, moves });
 
   return map
     .flat()
