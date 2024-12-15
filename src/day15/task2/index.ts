@@ -85,7 +85,7 @@ class Box {
       );
     }
     // one box above right
-    if (this.map[this.moveDirectionValue][this.leftCell.x].value === "[") {
+    if (this.map[this.moveDirectionValue][this.rightCell.x].value === "[") {
       boxes.push(
         new Box(
           this.map[this.moveDirectionValue][this.rightCell.x],
@@ -115,6 +115,20 @@ class Box {
     }
     // box along the way
     return this.boxesAlongTheWay.every((box) => box.isMovable);
+  }
+
+  moveBox() {
+    if (this.isMovable) {
+      this.boxesAlongTheWay.forEach((box) => {
+        box.moveBox();
+      });
+
+      this.leftCell.value = ".";
+      this.rightCell.value = ".";
+      this.map[this.moveDirectionValue][this.leftCell.x].value = "[";
+      this.map[this.moveDirectionValue][this.rightCell.x].value = "]";
+    }
+    return this.isMovable;
   }
 
   // clean up if this makes any sense - might later, dunno
@@ -152,9 +166,43 @@ const moveRobot = (
       cell.value = arr[index];
     });
   } else {
-    // upd and down move
-  }
+    //  don't move - wall
+    if (line[1].value === "#") return;
+    // move straight to the empty space
+    if (line[1].value === ".") {
+      robotPosition.y = line[1].y;
+      robotPosition.x = line[1].x;
+      line[0].value = ".";
+      line[1].value = "@";
+      return;
+    }
+    // create a box and move if you can
+    const moveDirectionValue =
+      move === "^" ? robotPosition.y - 1 : robotPosition.y + 1;
+    let box: Box | null = null;
+    if (line[1].value === "[") {
+      box = new Box(
+        map[moveDirectionValue][robotPosition.x],
+        map[moveDirectionValue][robotPosition.x + 1],
+        map,
+        move
+      );
+    } else if (line[1].value === "]") {
+      box = new Box(
+        map[moveDirectionValue][robotPosition.x - 1],
+        map[moveDirectionValue][robotPosition.x],
+        map,
+        move
+      );
+    }
 
+    if (box?.moveBox()) {
+      robotPosition.y = line[1].y;
+      robotPosition.x = line[1].x;
+      line[0].value = ".";
+      line[1].value = "@";
+    }
+  }
   // console.log({ arr, line });
 };
 
@@ -196,10 +244,12 @@ const run = () => {
 
   const moves = fs.readFileSync(movesInput, "utf8").split("\n").join("");
 
-  // moves.split("").forEach((move) => {
-  //   moveRobot(map, robotPosition, move as Move);
-  // });
   drawMap(map);
+  moves.split("").forEach((move) => {
+    console.log({ move });
+    moveRobot(map, robotPosition, move as Move);
+    drawMap(map);
+  });
   console.log({ robotPosition, moves });
 
   return map
