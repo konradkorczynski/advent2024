@@ -38,6 +38,8 @@ const getLine = (map: Map, y: number, x: number, move: Move) => {
   return line;
 };
 
+let movedBoxes: string[] = [];
+
 class Box {
   public isMovable: boolean = false;
   private boxesAlongTheWay: Box[] = [];
@@ -46,6 +48,7 @@ class Box {
   private map: Map;
   private leftCell: Cell;
   private rightCell: Cell;
+  public hasMoved: boolean = false;
   constructor(leftCell: Cell, rightCell: Cell, map: Map, move: Move) {
     this.move = move;
     this.map = map;
@@ -122,7 +125,12 @@ class Box {
       this.boxesAlongTheWay.forEach((box) => {
         box.moveBox();
       });
-
+      // drawMap(this.map);
+      const movedBoxeKey = `${this.leftCell.y},${this.leftCell.x}`;
+      if (movedBoxes.includes(movedBoxeKey)) {
+        return false;
+      }
+      movedBoxes.push(movedBoxeKey);
       this.leftCell.value = ".";
       this.rightCell.value = ".";
       this.map[this.moveDirectionValue][this.leftCell.x].value = "[";
@@ -202,6 +210,7 @@ const moveRobot = (
       line[0].value = ".";
       line[1].value = "@";
     }
+    box?.clear();
   }
   // console.log({ arr, line });
 };
@@ -258,10 +267,12 @@ const run = () => {
   const moves = fs.readFileSync(movesInput, "utf8").split("\n").join("");
 
   const toFile = true;
-  drawMap(map, toFile);
+
+  // drawMap(map, toFile);
   moves.split("").forEach((move) => {
     moveRobot(map, robotPosition, move as Move);
-    drawMap(map, toFile, move as Move);
+    movedBoxes = [];
+    // drawMap(map, toFile, move as Move);
   });
   // console.log({ robotPosition, moves });
 
