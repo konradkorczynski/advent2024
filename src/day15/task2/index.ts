@@ -2,6 +2,11 @@ import * as fs from "fs";
 import { withMetrics } from "../../utils";
 import util from "util";
 
+// Note: This is a shit algorithm for such a big maze, but I wanted to see how it will perform
+// hint, it is super slow lol
+
+// TODO: Implement Dijkstra 
+
 const mapInput = "input.txt";
 const movesInput = "moves.txt";
 // const mapInput = "example_input.txt";
@@ -276,8 +281,7 @@ const run = () => {
   moves.split("").forEach((move, i) => {
     moveRobot(map, robotPosition, move as Move);
     movedBoxes = [];
-    sleep(10);
-    console.clear();
+    sleep(10); console.clear();
     drawMap(map, toFile, move as Move);
     console.log("move: ", i);
   });
