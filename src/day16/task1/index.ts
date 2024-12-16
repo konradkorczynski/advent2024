@@ -2,19 +2,19 @@ import * as fs from "fs";
 import { withMetrics } from "../../utils";
 import util from "util";
 
-// const mapInput = "input.txt";
-const mapInput = "example_input.txt";
+const mapInput = "input.txt";
+// const mapInput = "example_input.txt";
 
 type Direction = "N" | "E" | "S" | "W";
 type CellValue = "#" | ".";
+let score: number | undefined;
 
 class Cell {
   constructor(
     public y: number,
     public x: number,
     public value: CellValue,
-    public directions: Direction[],
-    public visited = false
+    public directions: Direction[]
   ) {}
 }
 
@@ -59,9 +59,9 @@ const getLine = (map: Map, cell: Cell, direction: Direction) => {
         cell.directions.length > 2 ||
         (!cell.directions.includes(direction) && cell.directions.length === 2)
     );
-  console.log({ wallIndex, firstJunction });
+  // console.log({ wallIndex, firstJunction });
   if (firstJunction === -1 || firstJunction + 1 > wallIndex)
-    return line.slice(0, wallIndex + 1);
+    return line.slice(0, wallIndex);
 
   return line.slice(0, firstJunction + 2);
 };
@@ -69,26 +69,30 @@ const getLine = (map: Map, cell: Cell, direction: Direction) => {
 type MoveResult = "deadend" | "junction" | "success" | "continue";
 
 const move = (map: Map, path: Path): MoveResult => {
+  if (score && path.cost > score) {
+    return "deadend";
+  }
   // move to next available cell - junction or dead end
   const line = getLine(map, path.currentCell, path.moveDirection);
   // console.log(util.inspect({ line }, false, null, true));
   path.cost = path.cost + line.length - 1;
   path.currentCell = line[line.length - 1];
 
+  if (
+    path.currentCell.x === endPosition.x &&
+    path.currentCell.y === endPosition.y
+  ) {
+    // console.log("found FINISH");
+    return "success";
+  }
+
   const availableDirections = path.currentCell.directions.filter(
     (direction) => direction !== getOppositeDirection(path.moveDirection)
   );
 
-  console.log({ availableDirections });
+  // console.log({ availableDirections });
 
   if (availableDirections.length === 0) {
-    if (
-      path.currentCell.x === endPosition.x &&
-      path.currentCell.y === endPosition.y
-    ) {
-      console.log("found FINISH");
-      return "success";
-    }
     return "deadend";
   }
 
@@ -110,18 +114,15 @@ const move = (map: Map, path: Path): MoveResult => {
 
   availableDirections.forEach((direction) => {
     const cost = path.moveDirection === direction ? 0 : 1000;
-    console.log(`adding path`, {
-      direction,
-      cost,
-      visited: path.visitedJunctions,
-    });
+    // console.log(`adding path`, {
+    //   direction,
+    //   cost,
+    //   visited: path.visitedJunctions,
+    // });
     paths.push(
-      new Path(
-        path.currentCell,
-        path.cost + cost,
-        direction,
-        path.visitedJunctions
-      )
+      new Path(path.currentCell, path.cost + cost, direction, [
+        ...path.visitedJunctions,
+      ])
     );
   });
   return "junction";
@@ -148,7 +149,7 @@ const getOppositeDirection = (direction: Direction): Direction => {
 };
 
 const run = () => {
-  console.log("------------ start ------------");
+  // console.log("------------ start ------------");
 
   const map: Map = fs
     .readFileSync(mapInput, "utf8")
@@ -173,9 +174,7 @@ const run = () => {
     });
   // no idea if this will work, but the assuption is that all paths are done
   // when all cells are visited
-  let cellstToVisit = 0;
 
-  let score = 0;
   // put directions on cells
   map
     .flat(1)
@@ -195,7 +194,6 @@ const run = () => {
         directions.push("E");
       }
       cell.directions = directions;
-      cellstToVisit++;
     });
 
   // console.log({ cellstToVisit, startPosition, endPosition });
@@ -211,37 +209,45 @@ const run = () => {
       ])
     );
   });
+  //
 
-  while (debugIteration < 5) {
+  console.log(`starting with ${paths.length} paths`);
+
+  // while (debugIteration < 5) {
+  while (paths.length > 0) {
     const path = paths[0];
-    console.log(`\n--------> making move`, {
-      from: path.currentCell.y + "-" + path.currentCell.x,
-      direction: path.moveDirection,
-    });
+    // console.log(`\n--------> making move`, {
+    //   from: path.currentCell.y + "-" + path.currentCell.x,
+    //   direction: path.moveDirection,
+    //   visitedJunctions: path.visitedJunctions,
+    // });
     const moveResult = move(map, path);
-    console.log(util.inspect({ path }, false, null, true));
+    // console.log(util.inspect({ path }, false, null, true));
     if (
       moveResult === "deadend" ||
       moveResult === "success" ||
       moveResult === "junction"
     ) {
-      console.log(`XXXXXXXXXXXXX removing path`);
+      // console.log(`XXXXXXXXXXXXX removing path`);
       paths.shift();
     }
     if (moveResult === "success") {
-      console.log(path.cost);
+      score = path.cost;
     }
-    console.log(
-      util.inspect({ moveResult, pathsLength: paths.length }, false, null, true)
-    );
+    // console.log(
+    //   util.inspect({ moveResult, pathsLength: paths.length }, false, null, true)
+    // );
 
     debugIteration++;
+    if (debugIteration % 10000 === 0) {
+      console.log(`iteration ${debugIteration} score: ${score}`);
+    }
   }
 
   drawMap(map);
-  // console.log({ moves });
+  // console.log({ scores });
 
-  return 0;
+  return score;
 };
 
 withMetrics(run);
