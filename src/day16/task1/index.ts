@@ -2,18 +2,11 @@ import * as fs from "fs";
 import { withMetrics } from "../../utils";
 import util from "util";
 
-// Note: This is a shit algorithm for such a big maze, but I wanted to see how it will perform
-// hint, it is super slow lol
-
-// TODO: Implement Dijkstra 
-
-
 const mapInput = "input.txt";
 // const mapInput = "example_input.txt";
 
 type Direction = "N" | "E" | "S" | "W";
-type CellValue = "#" | ".";
-let score: number | undefined;
+type CellValue = "#" | "." | "S" | "E";
 
 class Cell {
   constructor(
@@ -23,19 +16,12 @@ class Cell {
     public directions: Direction[]
   ) {}
 }
-
 const startPosition = { y: 0, x: 0 };
 const endPosition = { y: 0, x: 0 };
-const paths: Path[] = [];
+type Map = Cell[][];
+type Graph = Record<string, Record<string, number>>;
 
-class Path {
-  constructor(
-    public currentCell: Cell,
-    public cost: number,
-    public moveDirection: Direction,
-    public visitedJunctions: string[] = []
-  ) {}
-}
+const graph: Graph = {};
 
 const getLine = (map: Map, cell: Cell, direction: Direction) => {
   const line = [];
@@ -72,86 +58,93 @@ const getLine = (map: Map, cell: Cell, direction: Direction) => {
   return line.slice(0, firstJunction + 2);
 };
 
-type MoveResult = "deadend" | "junction" | "success" | "continue";
+const allDirections: Direction[] = ["N", "E", "S", "W"];
 
-const move = (map: Map, path: Path): MoveResult => {
-  if (score && path.cost > score) {
-    return "deadend";
-  }
-  // move to next available cell - junction or dead end
-  const line = getLine(map, path.currentCell, path.moveDirection);
-  // console.log(util.inspect({ line }, false, null, true));
-  path.cost = path.cost + line.length - 1;
-  path.currentCell = line[line.length - 1];
-
-  if (
-    path.currentCell.x === endPosition.x &&
-    path.currentCell.y === endPosition.y
-  ) {
-    // console.log("found FINISH");
-    return "success";
-  }
-
-  const availableDirections = path.currentCell.directions.filter(
-    (direction) => direction !== getOppositeDirection(path.moveDirection)
-  );
-
-  // console.log({ availableDirections });
-
-  if (availableDirections.length === 0) {
-    return "deadend";
-  }
-
-  // bend in line
-  if (availableDirections.length === 1) {
-    path.cost = path.cost + 1000;
-    path.moveDirection = availableDirections[0];
-    return "continue";
-  }
-
-  if (
-    path.visitedJunctions.includes(
-      path.currentCell.y + "-" + path.currentCell.x
-    )
-  ) {
-    return "deadend";
-  }
-  path.visitedJunctions.push(path.currentCell.y + "-" + path.currentCell.x);
-
-  availableDirections.forEach((direction) => {
-    const cost = path.moveDirection === direction ? 0 : 1000;
-    // console.log(`adding path`, {
-    //   direction,
-    //   cost,
-    //   visited: path.visitedJunctions,
-    // });
-    paths.push(
-      new Path(path.currentCell, path.cost + cost, direction, [
-        ...path.visitedJunctions,
-      ])
-    );
-  });
-  return "junction";
-};
-
-type Map = Cell[][];
-
-const drawMap = (map: Map) => {
-  map.forEach((row) => {
-    console.log(row.map((cell) => cell.value).join(""));
+const addLastToGraph = (map: Map, cell: Cell, direction: Direction) => {
+  allDirections.forEach((dir) => {
+    const line = getLine(map, cell, direction);
+    const last = line.pop();
+    const cellKey = `${cell.y},${cell.x},${dir}`;
+    if (last && isNode(last)) {
+      // console.log({ direction, last, line });
+      if (!graph[cellKey]) {
+        graph[cellKey] = {};
+      }
+      const lastKey = `${last.y},${last.x},${direction}`;
+      graph[cellKey][lastKey] = line.length + (dir === direction ? 0 : 1000);
+    }
   });
 };
 
-const inLineMoves = ["NS", "SN", "EW", "WE"];
-const isInLineMove = (direction1: Direction, direction2: Direction) => {
-  return inLineMoves.includes(direction1 + direction2);
-};
+const isNode = (cell: Cell) =>
+  cell.directions.length > 2 ||
+  cell.value === "S" ||
+  cell.value === "E" ||
+  (cell.directions.length === 2 &&
+    !inLineDirections.includes(cell.directions.join("")));
 
-const getOppositeDirection = (direction: Direction): Direction => {
-  if (direction === "N") return "S";
-  if (direction === "S") return "N";
-  if (direction === "E") return "W";
-  return "E";
+const inLineDirections = ["NS", "SN", "EW", "WE"];
+
+const dijkstra = (graph: Graph, start: string) => {
+  // Create an object to store the shortest distance from the start node to every other node
+  let distances: Record<string, number> = {};
+
+  // A set to keep track of all visited nodes
+  let visited = new Set();
+
+  // Get all the nodes of the graph
+  let nodes = Object.keys(graph);
+
+  // Initially, set the shortest distance to every node as Infinity
+  for (let node of nodes) {
+    distances[node] = Infinity;
+  }
+
+  // The distance from the start node to itself is 0
+  distances[start] = 0;
+
+  let currentDirection: Direction = "E";
+  // Loop until all nodes are visited
+  while (nodes.length) {
+    // Sort nodes by distance and pick the closest unvisited node
+    nodes.sort((a, b) => distances[a] - distances[b]);
+    let closestNode = nodes.shift();
+
+    // If the shortest distance to the closest node is still Infinity, then remaining nodes are unreachable and we can break
+    if (distances[closestNode!] === Infinity) break;
+
+    // Mark the chosen node as visited
+    visited.add(closestNode);
+
+    // For each neighboring node of the current node
+    for (let neighbor in graph[closestNode!]) {
+      //   let extraCost = 1000;
+      //   const [cNy, cNx] = closestNode!.split(",").map(Number);
+      //   const [ny, nx] = neighbor!.split(",").map(Number);
+      //   if (
+      //     (cNy !== ny && ["N", "S"].includes(currentDirection)) ||
+      //     (cNx !== nx && ["E", "W"].includes(currentDirection))
+      //   ) {
+      //     extraCost = 0;
+      //   }
+
+      // If the neighbor hasn't been visited yet
+      if (!visited.has(neighbor)) {
+        // Calculate tentative distance to the neighboring node
+        let newDistance =
+          distances[closestNode!] + graph[closestNode!][neighbor];
+
+        // If the newly calculated distance is shorter than the previously known distance to this neighbor
+        if (newDistance < distances[neighbor]) {
+          // Update the shortest distance to this neighbor
+          distances[neighbor] = newDistance;
+        }
+      }
+    }
+  }
+
+  // Return the shortest distance from the start node to all nodes
+  return distances;
 };
 
 const run = () => {
@@ -170,21 +163,16 @@ const run = () => {
           endPosition.y = y;
           endPosition.x = x;
         }
-        return new Cell(
-          y,
-          x,
-          cell === "S" || cell === "E" ? "." : (cell as CellValue),
-          []
-        );
+        return new Cell(y, x, cell as CellValue, []);
       });
     });
-  // no idea if this will work, but the assuption is that all paths are done
-  // when all cells are visited
 
   // put directions on cells
   map
     .flat(1)
-    .filter((cell) => cell.value === ".")
+    .filter(
+      (cell) => cell.value === "." || cell.value === "S" || cell.value === "E"
+    )
     .forEach((cell) => {
       const directions: Direction[] = [];
       if (map[cell.y - 1][cell.x]?.value === ".") {
@@ -202,58 +190,28 @@ const run = () => {
       cell.directions = directions;
     });
 
-  // console.log({ cellstToVisit, startPosition, endPosition });
-  let position = { ...startPosition };
-  const currentCell = map[position.y][position.x];
+  // sort out graph
+  map
+    .flat(1)
+    .filter((cell) => {
+      const notWall = cell.value === ".";
+      return (
+        (notWall && isNode(cell)) || cell.value === "S" || cell.value === "E"
+      );
+    })
+    .forEach((cell) => {
+      //   console.log({ cell });
+      cell.directions.forEach((direction) => {
+        addLastToGraph(map, cell, direction);
+      });
+    });
 
-  let debugIteration = 0;
-  map[startPosition.y][startPosition.x].directions.forEach((direction) => {
-    const cost = isInLineMove("W", direction) ? 0 : 1000;
-    paths.push(
-      new Path(currentCell, cost, direction, [
-        currentCell.y + "-" + currentCell.x,
-      ])
-    );
-  });
-  //
+  //   console.log(util.inspect(graph, false, null, true /* enable colors */));
+  const distances = dijkstra(graph, `${startPosition.y},${startPosition.x},E`);
+  //   console.log(graph);
+  console.log(distances[`${endPosition.y},${endPosition.x},N`]);
 
-  console.log(`starting with ${paths.length} paths`);
-
-  // while (debugIteration < 5) {
-  while (paths.length > 0) {
-    const path = paths[0];
-    // console.log(`\n--------> making move`, {
-    //   from: path.currentCell.y + "-" + path.currentCell.x,
-    //   direction: path.moveDirection,
-    //   visitedJunctions: path.visitedJunctions,
-    // });
-    const moveResult = move(map, path);
-    // console.log(util.inspect({ path }, false, null, true));
-    if (
-      moveResult === "deadend" ||
-      moveResult === "success" ||
-      moveResult === "junction"
-    ) {
-      // console.log(`XXXXXXXXXXXXX removing path`);
-      paths.shift();
-    }
-    if (moveResult === "success") {
-      score = path.cost;
-    }
-    // console.log(
-    //   util.inspect({ moveResult, pathsLength: paths.length }, false, null, true)
-    // );
-
-    debugIteration++;
-    if (debugIteration % 10000 === 0) {
-      console.log(`iteration ${debugIteration} score: ${score}`);
-    }
-  }
-
-  drawMap(map);
-  // console.log({ scores });
-
-  return score;
+  return 0;
 };
 
 withMetrics(run);
