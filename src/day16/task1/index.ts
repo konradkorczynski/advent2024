@@ -103,7 +103,6 @@ const dijkstra = (graph: Graph, start: string) => {
   // The distance from the start node to itself is 0
   distances[start] = 0;
 
-  let currentDirection: Direction = "E";
   // Loop until all nodes are visited
   while (nodes.length) {
     // Sort nodes by distance and pick the closest unvisited node
@@ -118,15 +117,6 @@ const dijkstra = (graph: Graph, start: string) => {
 
     // For each neighboring node of the current node
     for (let neighbor in graph[closestNode!]) {
-      //   let extraCost = 1000;
-      //   const [cNy, cNx] = closestNode!.split(",").map(Number);
-      //   const [ny, nx] = neighbor!.split(",").map(Number);
-      //   if (
-      //     (cNy !== ny && ["N", "S"].includes(currentDirection)) ||
-      //     (cNx !== nx && ["E", "W"].includes(currentDirection))
-      //   ) {
-      //     extraCost = 0;
-      //   }
 
       // If the neighbor hasn't been visited yet
       if (!visited.has(neighbor)) {
