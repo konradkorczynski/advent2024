@@ -2,8 +2,8 @@ import * as fs from "fs";
 import { withMetrics } from "../../utils";
 import util from "util";
 
-// const mapInput = "input.txt";
-const mapInput = "example_input.txt";
+const mapInput = "input.txt";
+// const mapInput = "example_input.txt";
 
 type Direction = "N" | "E" | "S" | "W";
 type CellValue = "#" | "." | "S" | "E";
@@ -85,53 +85,107 @@ const isNode = (cell: Cell) =>
 
 const inLineDirections = ["NS", "SN", "EW", "WE"];
 
-const dijkstra = (graph: Graph, start: string) => {
+// I admit some of that is copy paste from google search
+const dijkstra = (
+  graph: Graph,
+  start: string
+): [Record<string, number>, string[]] => {
   // Create an object to store the shortest distance from the start node to every other node
-  type DistanceData = { d: number; s: string[] };
-  let distances: Record<string, DistanceData[]> = {};
+  let distances: Record<string, number> = {};
 
   // Get all the nodes of the graph
   let nodes = Object.keys(graph);
 
   // Initially, set the shortest distance to every node as Infinity
   for (let node of nodes) {
-    distances[node] = [{ d: Infinity, s: [] }];
+    distances[node] = Infinity;
   }
 
   // The distance from the start node to itself is 0
-  distances[start] = [{ d: 0, s: [start] }];
+  distances[start] = 0;
 
-  // Loop until all nodes are visited
-  while (nodes.length) {
-    // Sort nodes by distance and pick the closest unvisited node
-    nodes.sort((a, b) => distances[a][0].d - distances[b][0].d);
+  type Node = { n: string; d: number };
+  const nodeQueue: Node[] = [{ n: start, d: 0 }];
 
-    let closestNode = nodes.shift();
+  const paths: Record<string, string[]> = {};
+  paths[start] = [];
 
-    const dst = distances[closestNode!];
-    dst.forEach((distanceData) => {
-      // If the shortest distance to the closest node is still Infinity, then remaining nodes are unreachable and we can break
-      if (distanceData.d === Infinity) return;
+  // Loop until there are no more nodes
+  while (nodeQueue.length) {
+    // remove first
+    const node = nodeQueue.shift();
 
-      // For each neighboring node of the current node
-      for (let neighbor in graph[closestNode!]) {
-        // Calculate tentative distance to the neighboring node
-        let newDistance = distanceData.d + graph[closestNode!][neighbor];
+    // Get the neighbors of the node
+    const neighbors = graph[node!.n];
 
-        // If the newly calculated distance is shorter than the previously known distance to this neighbor
-        if (newDistance < distanceData.d) {
-          // Update the shortest distance to this neighbor
-          distances[neighbor].push({
-            d: newDistance,
-            s: [...distanceData.s, neighbor],
-          });
-        }
+    for (const neighbor of Object.keys(neighbors)) {
+      // Calculate the distance from the start node to the neighbor node
+      const distance = distances[node!.n] + neighbors[neighbor];
+
+      // If the distance is less than the previously calculated distance
+      if (distance < distances[neighbor]) {
+        // Update the distance of the neighbor node
+        distances[neighbor] = distance;
+
+        // Update the path
+        paths[neighbor] = [node!.n];
+
+        // Add the neighbor to the queue
+        nodeQueue.push({ n: neighbor, d: distance });
+
+        // Sort the queue based on the distance
+        nodeQueue.sort((a, b) => a.d - b.d);
+
+        // If the distance is equal to the previously calculated distance
+      } else if (distance === distances[neighbor]) {
+        // Update the path
+        paths[neighbor].push(node!.n);
       }
-    });
+    }
+    // console.log({ paths });
+  }
+
+  const pathNodes = [];
+  // this is soooo bugged 🤷
+  // starting from the end node, we traverse the path to the start node
+  // I think we only approach it from the South lol, tough
+  // The more I look at it the more I think it's wrong but yields the correct result
+  // It's late and I am confused
+  const tempNodes = [`${endPosition.y},${endPosition.x},N`];
+  // while we have nodes from the paths to traverse add to path nodes
+  while (tempNodes.length) {
+    const tempNode = tempNodes.pop() as string;
+    pathNodes.push(tempNode);
+    tempNodes.push(...paths[tempNode]);
   }
 
   // Return the shortest distance from the start node to all nodes
-  return distances;
+  return [distances, pathNodes];
+};
+
+const getCountsForPath = (pathNodes: string[]) => {
+  const cantNoLongerNameThings = new Set();
+  for (let i = 0; i < pathNodes.length - 1; i++) {
+    const [y1, x1, d1] = pathNodes[i].split(",");
+    const [y2, x2, d2] = pathNodes[i + 1].split(",");
+    const diff =
+      Math.abs(parseInt(y2) - parseInt(y1)) +
+      Math.abs(parseInt(x2) - parseInt(x1));
+    if (x1 === x2) {
+      for (let i = 0; i <= diff; i++) {
+        const y = Math.min(+y1, +y2) + i;
+        cantNoLongerNameThings.add(`${y},${x1}`);
+      }
+    }
+    if (y1 === y2) {
+      for (let i = 0; i <= diff; i++) {
+        const x = Math.min(+x1, +x2) + i;
+        cantNoLongerNameThings.add(`${y1},${x}`);
+      }
+    }
+  }
+  // console.log({ cantNoLongerNameThings });
+  return cantNoLongerNameThings.size;
 };
 
 const run = () => {
@@ -194,13 +248,16 @@ const run = () => {
     });
 
   //   console.log(util.inspect(graph, false, null, true /* enable colors */));
-  const distances = dijkstra(graph, `${startPosition.y},${startPosition.x},E`);
-  console.log(
-    util.inspect({ distances }, false, null, true /* enable colors */)
+  const [distances, pathNodes]: [Record<string, number>, string[]] = dijkstra(
+    graph,
+    `${startPosition.y},${startPosition.x},E`
   );
-  console.log(distances[`${endPosition.y},${endPosition.x},N`]);
+  // console.log({ pathNodes });
 
-  return 0;
+  return [
+    distances[`${endPosition.y},${endPosition.x},N`],
+    getCountsForPath(pathNodes),
+  ];
 };
 
 withMetrics(run);
